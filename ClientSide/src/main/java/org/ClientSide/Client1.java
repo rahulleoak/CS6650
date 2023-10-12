@@ -24,7 +24,7 @@ public class Client1 {
     return HttpClients.custom().setConnectionManager(manager).disableAutomaticRetries().build();
   }
 
-  public static void startInitialThreads(ExecutorService executor, RequestHandler requestHandler, File imageFile) {
+  public static void threadStart(ExecutorService executor, RequestHandler requestHandler, File imageFile) {
     for (int i = 0; i < initThreadGroupSize; i++) {
       executor.execute(() -> {
         for (int j = 0; j < initAPICalls; j++) {
@@ -38,7 +38,7 @@ public class Client1 {
     }
   }
 
-  public static void startAdditionalThreads(RequestHandler requestHandler,
+  public static void testThreads(RequestHandler requestHandler,
       File imageFile, int delay) {
 
     for (int k = 0; k < updatedAPICalls; k++) {
@@ -48,11 +48,11 @@ public class Client1 {
   }
 
   public static int performRequests(String requestType, RequestHandler requestHandler, File imageFile) {
-    boolean requestSuccessful = false;
+    boolean successfulRequests = false;
     int retryCount = 1;
 
 
-    while (!requestSuccessful && retryCount < 5) {
+    while (!successfulRequests && retryCount < 5) {
       try {
         if ("GET".equals(requestType)) {
           requestHandler.sendGetRequest("1");
@@ -60,7 +60,7 @@ public class Client1 {
           requestHandler.sendPostRequest("Sex Pistols", "Never Mind The Bollocks!", "1977", imageFile);
         }
 
-        requestSuccessful = true;
+        successfulRequests = true;
       } catch (Exception e) {
         e.printStackTrace();
         retryCount++;
@@ -69,14 +69,6 @@ public class Client1 {
     return retryCount;
   }
 
-  public static void waitForCompleted(ExecutorService executor) {
-    executor.shutdown();
-    try {
-      executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
-  }
 
   public static void main(String[] args) {
     if (args.length != 4) {
@@ -96,7 +88,7 @@ public class Client1 {
     RequestHandler requestHandler = new RequestHandler(httpClient, IPAddr);
     File imageFile = new File("src/main/resources/nmtb.png");
 
-    startInitialThreads(initExecutor, requestHandler, imageFile);
+    threadStart(initExecutor, requestHandler, imageFile);
 
     long startTime = System.currentTimeMillis();
     ExecutorService addExecutor = Executors.newFixedThreadPool(numThreadGroups);
@@ -107,7 +99,7 @@ public class Client1 {
           executor1.execute(() -> {
             //Print statement used to which pool and thread in that pool is running.
             //System.out.println(Thread.currentThread().getName());
-            startAdditionalThreads(requestHandler, imageFile, delay);
+            testThreads(requestHandler, imageFile, delay);
           });
         }
         executor1.shutdown();

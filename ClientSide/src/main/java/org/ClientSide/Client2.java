@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.*;
 
@@ -30,12 +29,12 @@ public class Client2 {
     return HttpClients.custom().setConnectionManager(manager).disableAutomaticRetries().build();
   }
 
-  public static void startInitialThreads(ExecutorService executor, RequestHandler requestHandler, File imageFile) {
+  public static void threadStart(ExecutorService executor, RequestHandler requestHandler, File imageFile) {
     for (int i = 0; i < initThreadGroupSize; i++) {
       executor.execute(() -> {
         for (int j = 0; j < initAPICalls; j++) {
-          performRequests("POST", requestHandler, imageFile);
-          performRequests("GET", requestHandler, imageFile);
+          sendRequests("POST", requestHandler, imageFile);
+          sendRequests("GET", requestHandler, imageFile);
         }
       });
     }
@@ -44,29 +43,29 @@ public class Client2 {
     }
   }
 
-  public static void startAdditionalThreads(RequestHandler requestHandler,
+  public static void testThreads(RequestHandler requestHandler,
       File imageFile, int delay) {
 
     for (int k = 0; k < updatedAPICalls; k++) {
-      totalRequests.addAndGet(performRequests("POST", requestHandler, imageFile));
-      totalRequests.addAndGet(performRequests("GET", requestHandler, imageFile));
+      totalRequests.addAndGet(sendRequests("POST", requestHandler, imageFile));
+      totalRequests.addAndGet(sendRequests("GET", requestHandler, imageFile));
     }
   }
 
-  private static int performRequests(String requestType, RequestHandler requestHandler, File imageFile) {
-    boolean requestSuccessful = false;
+  public static int sendRequests(String requestType, RequestHandler requestHandler, File imageFile) {
+    boolean successfulRequest = false;
     int retryCount = 1;
     int statusCode = -1;
     long start = System.currentTimeMillis();
     // 5 represents the maximum number of retries
-    while (!requestSuccessful && retryCount < 5) {
+    while (!successfulRequest && retryCount < 5) {
       try {
         if ("GET".equals(requestType)) {
           statusCode = requestHandler.sendGetRequest("1");
         } else if ("POST".equals(requestType)) {
           statusCode = requestHandler.sendPostRequest("Sex Pistols", "Never Mind The Bollocks!", "1977", imageFile);
         }
-        requestSuccessful = true;
+        successfulRequest = true;
 
         long end = System.currentTimeMillis();
         long latency = end - start;
@@ -86,9 +85,9 @@ public class Client2 {
     return retryCount;
   }
 
-  private static void writeToCSV(String fileName) {
+  public static void writeToCSV(String fileName) {
     StringBuilder sb = new StringBuilder();
-    sb.append("Start Time,Request Type,Latency (ms),Response Code\n");
+    sb.append("Start Time (ms),Request Type,Latency (ms),Response Code\n");
 
     for (Map<String, Object> requestRecord : requestRecords) {
       sb.append(requestRecord.get("startTime")).append(",")
@@ -104,7 +103,7 @@ public class Client2 {
     }
   }
 
-  private static void calculateAndDisplayStatistics() {
+  public static void LoadTestingStats() {
     long sum = 0;
     long min = Long.MAX_VALUE, max = Long.MIN_VALUE;
     List<Long> responseTimes = new ArrayList<>();
@@ -131,7 +130,7 @@ public class Client2 {
     System.out.println("Max response time: " + max + " milliseconds");
   }
 
-  private static long calculateMedian(List<Long> responseTimes) {
+  public static long calculateMedian(List<Long> responseTimes) {
     int middle = responseTimes.size() / 2;
     if (responseTimes.size() % 2 == 1) {
       return responseTimes.get(middle);
@@ -142,7 +141,7 @@ public class Client2 {
     }
   }
 
-  private static long calculateP99(List<Long> responseTimes) {
+  public static long calculateP99(List<Long> responseTimes) {
     int index = (int) Math.ceil(99 / 100.0 * responseTimes.size()) - 1;
     return responseTimes.get(index);
   }
@@ -164,7 +163,7 @@ public class Client2 {
     RequestHandler requestHandler = new RequestHandler(httpClient, IPAddr);
     File imageFile = new File("src/main/resources/nmtb.png");
 
-    startInitialThreads(executor, requestHandler, imageFile);
+    threadStart(executor, requestHandler, imageFile);
 
     ExecutorService addExecutor = Executors.newFixedThreadPool(threadGroupSize);
     long startTime = System.currentTimeMillis();
@@ -174,7 +173,7 @@ public class Client2 {
         for (int j = 0; j < threadGroupSize; j++) {
           executor1.execute(() -> {
             //System.out.println(Thread.currentThread().getName());
-            startAdditionalThreads(requestHandler, imageFile, delay);
+            testThreads(requestHandler, imageFile, delay);
           });
         }
         executor1.shutdown();
@@ -198,7 +197,7 @@ public class Client2 {
     writeToCSV("records.csv");
     System.out.println("\nWall Time: " + wallTime + " seconds");
     System.out.println("Throughput: " + throughput + " requests per second");
-    calculateAndDisplayStatistics();
+    LoadTestingStats();
   }
 }
 
